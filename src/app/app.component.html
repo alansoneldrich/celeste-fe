@@ -1,16 +1,37 @@
-<div class="h-screen w-full flex flex-col bg-[#f4f4f8] text-[#222]">
-  <!-- Header -->
-  <header class="p-4 shadow-md bg-[#1e1e2f] text-[#e2e2e2]">
-    <h1 class="text-xl font-semibold tracking-wide">Celeste Core Interface</h1>
-  </header>
+<div class="drawer drawer-end">
+  <input id="history-drawer" type="checkbox" class="drawer-toggle" />
 
-  <!-- Main View -->
-  <main class="flex-1 overflow-auto p-4">
-    <router-outlet></router-outlet>
-  </main>
+  <!-- Main content -->
+  <div class="drawer-content flex flex-col h-screen bg-[#f4f4f8] text-[#333]">
+    <!-- Header -->
+    <header class="p-4 shadow bg-white flex justify-between items-center">
+      <h1 class="text-lg font-semibold">Celeste Core UI</h1>
+      <label for="history-drawer" class="btn btn-sm btn-outline">View History</label>
+    </header>
 
-  <!-- Footer -->
-  <footer class="p-2 text-center text-sm bg-[#1e1e2f] text-[#aaa]">
-    Connected to Celeste Core · v1.0 · Alignment Pulse Active
-  </footer>
+    <!-- Page router view -->
+    <main class="flex-1 overflow-y-auto">
+      <router-outlet></router-outlet>
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-2 text-center text-sm text-gray-500 bg-white">
+      Connected to Celeste Core · v1.0
+    </footer>
+  </div>
+
+  <!-- Drawer Panel -->
+  <div class="drawer-side">
+    <label for="history-drawer" class="drawer-overlay"></label>
+    <div class="menu p-4 w-80 min-h-full bg-base-100 text-base-content">
+      <h2 class="text-lg font-bold mb-4">🧠 Past Messages</h2>
+      <ul class="space-y-2 text-sm max-h-[80vh] overflow-y-auto">
+        @for (msg of memory; track msg) {
+        <li>
+          <strong>{{ msg.sender }}:</strong> {{ msg.text }}
+        </li>
+        }
+      </ul>
+    </div>
+  </div>
 </div>

@@ -2,8 +2,8 @@
     <!-- Message Thread -->
     <div class="flex-1 overflow-y-auto space-y-4 p-2">
       @for (msg of messages; track msg) {
-        <div class="w-full" [ngClass]="msg.sender === 'you' ? 'text-right' : 'text-left'">
-          <div class="inline-block max-w-[80%] px-4 py-3 rounded-xl shadow-sm"
+        <div class="w-full chat" [ngClass]="msg.sender === 'you' ? 'chat-end' : 'chat-start'">
+          <div class="inline-block max-w-[80%] px-4 py-3 rounded-xl shadow-sm chat-bubble"
                [ngClass]="msg.sender === 'you' 
                  ? 'bg-violet-600 text-white' 
                  : 'bg-white text-[#333] border border-[#e0e0e5]'">
