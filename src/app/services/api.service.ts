@@ -42,8 +42,10 @@ export class ApiService {
     return this.http.get(`${this.baseUrl}/status`);
   }
 
-  getMemory(): Observable<any> {
-    return this.http.get(`${this.baseUrl}/memory`);
+  getMemory(userId: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/conversation/list`, {
+      params: { userId }
+    });
   }
 
   updateConfig(config: any): Observable<any> {
