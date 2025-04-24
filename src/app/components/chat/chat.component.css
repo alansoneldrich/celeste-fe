@@ -3,3 +3,12 @@
     height: 100%;
   }
   
+  .messages-container {
+    scroll-behavior: smooth;
+  }
+
+  button.fixed {
+    position: fixed;
+    z-index: 9999;
+    transition: all 0.3s ease;
+  }

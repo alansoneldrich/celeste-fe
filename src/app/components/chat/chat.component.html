@@ -1,6 +1,6 @@
 <div class="flex flex-col h-full px-4 py-2 bg-[#f4f4f8] text-[#333]">
     <!-- Message Thread -->
-    <div class="flex-1 overflow-y-auto space-y-4 p-2">
+    <div #messagesContainer class="flex-1 overflow-y-auto space-y-4 p-2 scroll-smoot"  (scroll)="onScroll()">
       @for (msg of messages; track msg) {
         <div class="w-full chat" [ngClass]="msg.sender === 'you' ? 'chat-end' : 'chat-start'">
           <div class="inline-block max-w-[80%] px-4 py-3 rounded-xl shadow-sm chat-bubble"
@@ -13,6 +13,7 @@
               } @else {
                 Celeste
               }
+              {{ msg.timestamp | smartTimestamp }}
             </strong>
             {{ msg.text }}
           </div>
@@ -34,5 +35,11 @@
         Send
       </button>
     </form>
+
+    <button *ngIf="showScrollToBottom"
+    (click)="onClickScrollToBottom()"
+    class="fixed bottom-30 right-6 bg-violet-600 hover:bg-violet-700 text-white rounded-full px-4 py-2 shadow-lg z-50 transition hover:scale-105 transition-transform duration-200 ease-in-out backdrop-blur">
+⬇️ Scroll to latest
+  </button>
   </div>
   
