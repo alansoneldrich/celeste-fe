@@ -1,0 +1,36 @@
+<div class="flex flex-col h-full px-4 py-2 bg-[#f4f4f8] text-[#333]">
+    <!-- Message Thread -->
+    <div class="flex-1 overflow-y-auto space-y-4 p-2">
+      @for (msg of messages; track msg) {
+        <div class="w-full" [ngClass]="msg.sender === 'you' ? 'text-right' : 'text-left'">
+          <div class="inline-block max-w-[80%] px-4 py-3 rounded-xl shadow-sm"
+               [ngClass]="msg.sender === 'you' 
+                 ? 'bg-violet-600 text-white' 
+                 : 'bg-white text-[#333] border border-[#e0e0e5]'">
+            <strong class="block text-xs opacity-60 mb-1">
+              @if (msg.sender === 'you') {
+                You
+              } @else {
+                Celeste
+              }
+            </strong>
+            {{ msg.text }}
+          </div>
+        </div>
+      }
+  
+      @if (isLoading) {
+        <div class="italic text-gray-500">Celeste is thinking...</div>
+      }
+    </div>
+  
+    <!-- Input -->
+    <form (submit)="sendMessage()" class="mt-4 flex gap-2 bg-[#fafafa] p-3 rounded-xl border border-[#e0e0e5]">
+      <input [(ngModel)]="userInput" name="userInput"
+             class="flex-1 px-4 py-2 border border-[#ccc] rounded-xl bg-white text-[#333] focus:outline-none focus:ring-2 focus:ring-violet-500" />
+      <button type="submit" class="px-5 py-2 bg-violet-600 text-white rounded-xl shadow-md hover:bg-violet-700">
+        Send
+      </button>
+    </form>
+  </div>
+  
