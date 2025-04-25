@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { VoiceRecognitionService } from '../../services/voice-recognition.service';
 import { SmartTimestampPipe } from '../../pipes/smart-timestamp.pipe';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-chat',
@@ -20,23 +21,34 @@ export class ChatComponent implements AfterViewChecked {
   isLoading = false;
   isListening = false;
   messages: { sender: 'you' | 'celeste'; text: string, timestamp: Date }[] = [];
+  threadId: string;
+
   private timer!: ReturnType<typeof setInterval>;
 
   constructor(
     private apiService: ApiService,
     public voice: VoiceRecognitionService,
     private cdRef: ChangeDetectorRef,
+    private route: ActivatedRoute
   ) {
     this.voice.onFinalTranscript.subscribe((finalText) => {
       this.sendMessage(finalText); // ✅ Correctly closed
       this.isListening = false; // ✅ Optional: auto stop on speech end
     });
+
+    this.threadId = this.route.snapshot.paramMap.get('threadId') || '';
   }
 
   ngOnInit(): void {
-    this.timer = setInterval(() => {
-      this.cdRef.markForCheck();
-    }, 30000);
+    this.route.paramMap
+      .subscribe(params => {
+        this.threadId = params.get('threadId') || '';
+        this.recallConversationThread();
+        this.isListening = false;
+      });
+  
+    // If you had any one-time setup (e.g. your change-detector timer), keep it here:
+    this.timer = setInterval(() => this.cdRef.markForCheck(), 30_000);
   }
   
   ngOnDestroy(): void {
@@ -45,6 +57,24 @@ export class ChatComponent implements AfterViewChecked {
 
   ngAfterViewChecked() {
     this.scrollToBottomIfNearEnd();
+  }
+
+  recallConversationThread(): void {
+
+    // Temporary codes
+    console.log(this.threadId, "asdfasdfasfafasdfasdfasdfasdfsadfasf")
+    let userId = 'Jean';
+
+    this.apiService.getConversationThread(userId, this.threadId).subscribe({
+      next: (res) => {
+        console.log(res)
+        this.messages = res || [];
+        this.scrollToBottom(true); // Scroll to bottom after loading messages
+      },
+      error: () => {
+        this.messages = [];        
+      }
+    });
   }
 
   scrollToBottom(force = false): void {

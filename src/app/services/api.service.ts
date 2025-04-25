@@ -51,4 +51,8 @@ export class ApiService {
   updateConfig(config: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/config`, config);
   }
+
+  getConversationThread(userId: string, threadId: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/conversation/thread?userId=${userId}&threadId=${threadId}`);
+  }
 }
