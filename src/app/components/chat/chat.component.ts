@@ -104,54 +104,45 @@ export class ChatComponent implements AfterViewChecked {
     const message = (text ?? this.userInput).trim();
     if (!message && !this.attachment) return;
   
+    // Push user message immediately before upload
+    this.messages.push({
+      sender: 'you',
+      text: message,
+      timestamp: new Date(),
+      attachment: this.attachment ? { ...this.attachment } : null
+    });
+  
+    this.isLoading = true;
+  
     const formData = new FormData();
   
-    // Handle photo or video attachment
     if (this.attachment?.type === 'photo' && this.attachment.data) {
-      try {
-        const base64Data = this.attachment.data.split(',')[1]; // Extract Base64 string
-        const blob = this.base64ToBlob(base64Data, 'image/png');
-        formData.append('photo', blob, 'photo.png');
-      } catch (error) {
-        console.error('Failed to process photo attachment:', error);
-        return;
-      }
+      const base64 = this.attachment.data.split(',')[1];
+      const blob = this.base64ToBlob(base64, 'image/png');
+      formData.append('photo', blob, 'photo.png');
     } else if (this.attachment?.type === 'video' && this.attachment.data) {
-      try {
-        const base64Data = this.attachment.data.split(',')[1]; // Extract Base64 string
-        const blob = this.base64ToBlob(base64Data, 'video/mp4');
-        formData.append('video', blob, 'video.mp4');
-      } catch (error) {
-        console.error('Failed to process video attachment:', error);
-        return;
-      }
+      const base64 = this.attachment.data.split(',')[1];
+      const blob = this.base64ToBlob(base64, 'video/mp4');
+      formData.append('video', blob, 'video.mp4');
     } else if (this.attachment?.type === 'file' && this.attachment.data) {
-      try {
-        const base64Data = this.attachment.data.split(',')[1]; // Extract Base64 string
-        const blob = this.base64ToBlob(base64Data, 'application/octet-stream');
-        formData.append('file', blob, this.attachment.fileName || 'file');
-      } catch (error) {
-        console.error('Failed to process file attachment:', error);
-        return;
-      }
+      const base64 = this.attachment.data.split(',')[1];
+      const blob = this.base64ToBlob(base64, 'application/octet-stream');
+      formData.append('file', blob, this.attachment.fileName || 'file');
     }
   
-    this.removeAttachment(); // Clear the attachment after processing
-    // Add the message text to the FormData
+    this.removeAttachment();
     formData.append('message', message);
   
-    // Send the FormData to the backend
     this.apiService.uploadFile(formData).subscribe({
       next: (res) => {
         const lastMessage = this.messages[this.messages.length - 1];
         if (res.url) {
           lastMessage.text = `<a href="${res.url}" target="_blank">${res.fileName || 'View Attachment'}</a>`;
           if (lastMessage.attachment) {
-            lastMessage.attachment.data = res.url; // Update attachment data with the URL
+            lastMessage.attachment.data = res.url;
           }
         }
         this.userInput = '';
-        this.removeAttachment(); // Clear the attachment after sending
         this.isLoading = false;
       },
       error: () => {
@@ -164,6 +155,7 @@ export class ChatComponent implements AfterViewChecked {
       }
     });
   }
+  
 
   // Scroll Logic
   scrollToBottom(force = false): void {

@@ -77,12 +77,19 @@
   <form (submit)="sendMessage()" class="mt-4 flex gap-2 bg-[#fafafa] p-3 rounded-xl border border-[#e0e0e5] items-center">
     <button type="button" (click)="fileInput.click()" class="text-xl text-violet-600 hover:text-violet-800">📎</button>
     <button type="button" (click)="openCamera()" class="text-xl text-violet-600 hover:text-violet-800">📷</button>
+  
     <input [(ngModel)]="userInput" name="userInput"
-          class="flex-1 px-4 py-2 border border-[#ccc] rounded-xl bg-white text-[#333] focus:outline-none focus:ring-2 focus:ring-violet-500" />
+           class="flex-1 px-4 py-2 border border-[#ccc] rounded-xl bg-white text-[#333] focus:outline-none focus:ring-2 focus:ring-violet-500" />
+  
+    <!-- 🎤 Voice Button -->
+    <button type="button" *ngIf="!isListening" (click)="startListening()">🎤</button>
+    <button type="button" *ngIf="isListening" (click)="stopListening()">🛑</button>
+  
     <button type="submit" class="px-5 py-2 bg-violet-600 text-white rounded-xl shadow-md hover:bg-violet-700">
       Send
     </button>
   </form>
+  
 
   <!-- Scroll to Latest Button -->
   <button *ngIf="showScrollToBottom"
