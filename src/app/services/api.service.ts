@@ -55,4 +55,9 @@ export class ApiService {
   getConversationThread(userId: string, threadId: string): Observable<any> {
     return this.http.get(`${this.baseUrl}/conversation/thread?userId=${userId}&threadId=${threadId}`);
   }
+
+  uploadFile(formData: FormData): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/upload`, formData);
+  }
+  
 }

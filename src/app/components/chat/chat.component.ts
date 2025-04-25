@@ -1,4 +1,11 @@
-import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  ViewChild,
+  AfterViewChecked,
+  ChangeDetectorRef,
+  NgZone
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
@@ -15,12 +22,27 @@ import { ActivatedRoute } from '@angular/router';
 })
 export class ChatComponent implements AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  @ViewChild('fileInput') fileInputRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
 
+  cameraOpen = false;
+  mediaRecorder!: MediaRecorder;
+  recordedChunks: Blob[] = [];
+  isRecording = false; 
   showScrollToBottom = false;
   userInput = '';
   isLoading = false;
   isListening = false;
-  messages: { sender: 'you' | 'celeste'; text: string, timestamp: Date }[] = [];
+
+  messages: {
+    sender: 'you' | 'celeste';
+    text: string;
+    timestamp: Date;
+    attachment?: { type: 'photo' | 'video' | 'file'; data: string; fileName?: string } | null;
+  }[] = [];
+
+  attachment: { type: 'photo' | 'video' | 'file'; data: string; fileName?: string } | null = null;
+
   threadId: string;
 
   private timer!: ReturnType<typeof setInterval>;
@@ -32,8 +54,8 @@ export class ChatComponent implements AfterViewChecked {
     private route: ActivatedRoute
   ) {
     this.voice.onFinalTranscript.subscribe((finalText) => {
-      this.sendMessage(finalText); // ✅ Correctly closed
-      this.isListening = false; // ✅ Optional: auto stop on speech end
+      this.sendMessage(finalText);
+      this.isListening = false;
     });
 
     this.threadId = this.route.snapshot.paramMap.get('threadId') || '';
@@ -50,12 +72,12 @@ export class ChatComponent implements AfterViewChecked {
     // If you had any one-time setup (e.g. your change-detector timer), keep it here:
     this.timer = setInterval(() => this.cdRef.markForCheck(), 30_000);
   }
-  
+
   ngOnDestroy(): void {
     clearInterval(this.timer);
   }
 
-  ngAfterViewChecked() {
+  ngAfterViewChecked(): void {
     this.scrollToBottomIfNearEnd();
   }
 
@@ -77,10 +99,77 @@ export class ChatComponent implements AfterViewChecked {
     });
   }
 
+
+  sendMessage(text?: string): void {
+    const message = (text ?? this.userInput).trim();
+    if (!message && !this.attachment) return;
+  
+    const formData = new FormData();
+  
+    // Handle photo or video attachment
+    if (this.attachment?.type === 'photo' && this.attachment.data) {
+      try {
+        const base64Data = this.attachment.data.split(',')[1]; // Extract Base64 string
+        const blob = this.base64ToBlob(base64Data, 'image/png');
+        formData.append('photo', blob, 'photo.png');
+      } catch (error) {
+        console.error('Failed to process photo attachment:', error);
+        return;
+      }
+    } else if (this.attachment?.type === 'video' && this.attachment.data) {
+      try {
+        const base64Data = this.attachment.data.split(',')[1]; // Extract Base64 string
+        const blob = this.base64ToBlob(base64Data, 'video/mp4');
+        formData.append('video', blob, 'video.mp4');
+      } catch (error) {
+        console.error('Failed to process video attachment:', error);
+        return;
+      }
+    } else if (this.attachment?.type === 'file' && this.attachment.data) {
+      try {
+        const base64Data = this.attachment.data.split(',')[1]; // Extract Base64 string
+        const blob = this.base64ToBlob(base64Data, 'application/octet-stream');
+        formData.append('file', blob, this.attachment.fileName || 'file');
+      } catch (error) {
+        console.error('Failed to process file attachment:', error);
+        return;
+      }
+    }
+  
+    this.removeAttachment(); // Clear the attachment after processing
+    // Add the message text to the FormData
+    formData.append('message', message);
+  
+    // Send the FormData to the backend
+    this.apiService.uploadFile(formData).subscribe({
+      next: (res) => {
+        const lastMessage = this.messages[this.messages.length - 1];
+        if (res.url) {
+          lastMessage.text = `<a href="${res.url}" target="_blank">${res.fileName || 'View Attachment'}</a>`;
+          if (lastMessage.attachment) {
+            lastMessage.attachment.data = res.url; // Update attachment data with the URL
+          }
+        }
+        this.userInput = '';
+        this.removeAttachment(); // Clear the attachment after sending
+        this.isLoading = false;
+      },
+      error: () => {
+        this.messages.push({
+          sender: 'celeste',
+          text: '⚠️ Failed to send the message or attachment.',
+          timestamp: new Date()
+        });
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // Scroll Logic
   scrollToBottom(force = false): void {
     const el = this.messagesContainer?.nativeElement;
     if (el && (force || this.isNearBottom(el))) {
-      el.scrollTop = el.scrollHeight; // ← This will be smooth now!
+      el.scrollTop = el.scrollHeight;
       this.showScrollToBottom = false;
     }
   }
@@ -93,8 +182,7 @@ export class ChatComponent implements AfterViewChecked {
   }
 
   isNearBottom(el: HTMLElement): boolean {
-    const threshold = 120; // px from bottom before showing button
-    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }
 
   onScroll(): void {
@@ -106,37 +194,135 @@ export class ChatComponent implements AfterViewChecked {
     this.scrollToBottom(true);
   }
 
-  sendMessage(text?: string) {
-    const message = (text ?? this.userInput).trim();
-    if (!message) return;
-
-    this.messages.push({ sender: 'you', text: message, timestamp: new Date() });
-    this.isLoading = true;
-
-    this.apiService.reflect(this.userInput).subscribe({
-      next: (res) => {
-        this.messages.push({ sender: 'celeste', text: res.response, timestamp: new Date() });
-        this.userInput = '';
-        this.isLoading = false;
-      },
-      error: () => {
-        this.messages.push({
-          sender: 'celeste',
-          text: '⚠️ Celeste is currently unreachable. Attempting to recalibrate...',
-          timestamp: new Date()
-        });
-        this.isLoading = false;
-      }      
-    });
-  }
-
-  startListening() {
+  // Voice
+  startListening(): void {
     this.voice.start();
-    this.isListening = true; 
+    this.isListening = true;
   }
 
-  stopListening() {
-    this.voice.stop(); // The transcript will be sent from the EventEmitter
+  stopListening(): void {
+    this.voice.stop();
     this.isListening = false;
+  }
+
+  // File Upload
+  triggerFileUpload(): void {
+    this.fileInputRef.nativeElement.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileData = reader.result as string;
+  
+      // Determine the file type and set the attachment
+      if (file.type.startsWith('image/')) {
+        this.attachment = { type: 'photo', data: fileData, fileName: file.name };
+      } else if (file.type.startsWith('video/')) {
+        this.attachment = { type: 'video', data: fileData, fileName: file.name };
+      } else {
+        this.attachment = { type: 'file', data: fileData, fileName: file.name };
+      }
+    };
+  
+    reader.readAsDataURL(file); // Read the file as a data URL for preview
+  }
+
+  // Open the camera
+  openCamera(): void {
+    this.cameraOpen = true;
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        const video = this.videoElement.nativeElement;
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch((err) => {
+        console.error('Error accessing camera:', err);
+        this.cameraOpen = false;
+      });
+  }
+
+  // Close the camera
+  closeCamera(): void {
+    this.cameraOpen = false;
+    this.isRecording = false; // Reset recording state
+    const video = this.videoElement.nativeElement;
+    const stream = video.srcObject as MediaStream;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+    video.srcObject = null;
+  }
+
+  capturePhoto(): void {
+    const video = this.videoElement.nativeElement;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const photo = canvas.toDataURL('image/png');
+      this.attachment = { type: 'photo', data: photo };
+      this.closeCamera();
+    } else {
+      console.error('Failed to get 2D context from canvas');
+    }
+  }
+
+  removeAttachment(): void {
+    this.attachment = null;
+  }
+
+  base64ToBlob(base64: string, mimeType: string): Blob {
+    try {
+      // Validate and clean the Base64 string
+      const cleanedBase64 = base64.replace(/^data:[a-zA-Z0-9/+.-]+;base64,/, ''); // Remove data URL prefix
+      const byteCharacters = atob(cleanedBase64); // Decode Base64 string
+      const byteNumbers = Array.from(byteCharacters, (char) => char.charCodeAt(0));
+      const byteArray = new Uint8Array(byteNumbers);
+      return new Blob([byteArray], { type: mimeType });
+    } catch (error) {
+      console.error('Error decoding Base64 string:', error);
+      throw new Error('Invalid Base64 string');
+    }
+  }
+
+  // Start video recording
+  startRecording(): void {
+    const stream = this.videoElement.nativeElement.srcObject as MediaStream;
+    if (!stream) return;
+
+    this.recordedChunks = [];
+    this.mediaRecorder = new MediaRecorder(stream);
+
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.recordedChunks.push(event.data);
+      }
+    };
+
+    this.mediaRecorder.onstop = () => {
+      const videoBlob = new Blob(this.recordedChunks, { type: 'video/mp4' });
+      const videoUrl = URL.createObjectURL(videoBlob);
+      this.attachment = { type: 'video', data: videoUrl };
+      this.closeCamera();
+    };
+
+    this.isRecording = true; // Set recording state to true
+    this.mediaRecorder.start();
+  }
+
+  // Stop video recording
+  stopRecording(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
+    this.isRecording = false; // Set recording state to false
   }
 }

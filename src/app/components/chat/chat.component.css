@@ -12,3 +12,12 @@
     z-index: 9999;
     transition: all 0.3s ease;
   }
+
+  /* Limit the size of images and videos in chat bubbles */
+  img,
+  video {
+    max-width: 100%; /* Ensure it doesn't exceed the container width */
+    max-height: 200px; /* Limit the height to avoid taking too much space */
+    object-fit: cover; /* Maintain aspect ratio */
+    border-radius: 8px; /* Add rounded corners */
+}
