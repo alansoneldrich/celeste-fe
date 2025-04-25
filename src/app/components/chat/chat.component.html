@@ -1,45 +1,93 @@
 <div class="flex flex-col h-full px-4 py-2 bg-[#f4f4f8] text-[#333]">
-    <!-- Message Thread -->
-    <div #messagesContainer class="flex-1 overflow-y-auto space-y-4 p-2 scroll-smoot"  (scroll)="onScroll()">
-      @for (msg of messages; track msg) {
-        <div class="w-full chat" [ngClass]="msg.sender === 'you' ? 'chat-end' : 'chat-start'">
-          <div class="inline-block max-w-[80%] px-4 py-3 rounded-xl shadow-sm chat-bubble"
-               [ngClass]="msg.sender === 'you' 
-                 ? 'bg-violet-600 text-white' 
-                 : 'bg-white text-[#333] border border-[#e0e0e5]'">
-            <strong class="block text-xs opacity-60 mb-1">
-              @if (msg.sender === 'you') {
-                You
-              } @else {
-                Celeste
-              }
-              {{ msg.timestamp | smartTimestamp }}
-            </strong>
-            {{ msg.text }}
+  <!-- Message Thread -->
+  <div #messagesContainer class="flex-1 overflow-y-auto space-y-4 p-2 scroll-smoot" (scroll)="onScroll()">
+    @for (msg of messages; track msg) {
+      <div class="w-full chat" [ngClass]="msg.sender === 'you' ? 'chat-end' : 'chat-start'">
+        <div class="inline-block max-w-[80%] px-4 py-3 rounded-xl shadow-sm chat-bubble"
+             [ngClass]="msg.sender === 'you' 
+               ? 'bg-violet-600 text-white' 
+               : 'bg-white text-[#333] border border-[#e0e0e5]'">
+          <strong class="block text-xs opacity-60 mb-1">
+            @if (msg.sender === 'you') {
+              You
+            } @else {
+              Celeste
+            }
+            {{ msg.timestamp | smartTimestamp }}
+          </strong>
+          <!-- Display photo attachment -->
+          <div *ngIf="msg.attachment?.type === 'photo' && msg.attachment?.data" class="mb-2">
+            <img [src]="msg.attachment?.data" alt="Attachment" class="w-full max-w-xs rounded-lg" />
           </div>
+          <!-- Display video attachment -->
+          <div *ngIf="msg.attachment?.type === 'video' && msg.attachment?.data" class="mb-2">
+            <video controls [src]="msg.attachment?.data" class="w-full max-w-xs rounded-lg"></video>
+          </div>
+          <!-- Display other file attachments -->
+          <div *ngIf="msg.attachment?.type === 'file' && msg.attachment?.data" class="mb-2">
+            <a [href]="msg.attachment?.data" target="_blank" class="text-blue-500 underline">
+              {{ msg.attachment?.fileName || 'Download File' }}
+            </a>
+          </div>
+          <div [innerHTML]="msg.text"></div>
         </div>
-      }
+      </div>
+    }
   
-      @if (isLoading) {
-        <div class="italic text-gray-500">Celeste is thinking...</div>
-      }
-    </div>
-  
-    <!-- Input -->
-    <form (submit)="sendMessage()" class="mt-4 flex gap-2 bg-[#fafafa] p-3 rounded-xl border border-[#e0e0e5]">
-      <input [(ngModel)]="userInput" name="userInput"
-             class="flex-1 px-4 py-2 border border-[#ccc] rounded-xl bg-white text-[#333] focus:outline-none focus:ring-2 focus:ring-violet-500" />
-      <button type="button" *ngIf="!isListening" (click)="startListening()">🎤</button>
-      <button type="button" *ngIf="isListening" (click)="stopListening()">🛑</button>
-      <button type="submit" class="px-5 py-2 bg-violet-600 text-white rounded-xl shadow-md hover:bg-violet-700">
-        Send
-      </button>
-    </form>
-
-    <button *ngIf="showScrollToBottom"
-    (click)="onClickScrollToBottom()"
-    class="fixed bottom-30 right-6 bg-violet-600 hover:bg-violet-700 text-white rounded-full px-4 py-2 shadow-lg z-50 transition hover:scale-105 transition-transform duration-200 ease-in-out backdrop-blur">
-⬇️ Scroll to latest
-  </button>
+    @if (isLoading) {
+      <div class="italic text-gray-500">Celeste is thinking...</div>
+    }
   </div>
-  
+
+  <!-- Camera Modal -->
+  <div *ngIf="cameraOpen" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+    <div class="bg-white p-4 rounded-xl shadow-lg text-center">
+      <video #videoElement autoplay playsinline class="rounded-md w-full max-w-sm mx-auto"></video>
+      <div class="mt-4 flex justify-center gap-4">
+        <!-- Show buttons only when not recording -->
+        <ng-container *ngIf="!isRecording">
+          <button (click)="capturePhoto()" class="px-4 py-2 bg-violet-600 text-white rounded">📸 Capture Photo</button>
+          <button (click)="startRecording()" class="px-4 py-2 bg-blue-600 text-white rounded">🎥 Start Recording</button>
+        </ng-container>
+        <!-- Show stop recording button only when recording -->
+        <button *ngIf="isRecording" (click)="stopRecording()" class="px-4 py-2 bg-red-600 text-white rounded">⏹ Stop Recording</button>
+        <button (click)="closeCamera()" class="px-4 py-2 bg-gray-300 rounded">✖️ Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden File Input -->
+  <input #fileInput type="file" accept="image/*,.pdf" hidden (change)="onFileSelected($event)" />
+
+  <!-- Attachment Preview -->
+  <div *ngIf="attachment" class="flex items-center gap-4 p-2 bg-gray-100 rounded-lg mb-2">
+    <div *ngIf="attachment.type === 'photo' && attachment.data" class="w-20 h-20">
+      <img [src]="attachment.data" alt="Photo" class="w-full h-full object-cover rounded-lg" />
+    </div>
+    <div *ngIf="attachment?.type === 'video' && attachment.data" class="w-20 h-20">
+      <video controls [src]="attachment.data" class="w-full h-full object-cover rounded-lg"></video>
+    </div>
+    <div *ngIf="attachment.type === 'file'" class="text-sm">
+      <span>{{ attachment.fileName || 'File Attached' }}</span>
+    </div>
+    <button (click)="removeAttachment()" class="text-red-500 hover:text-red-700">✖ Remove</button>
+  </div>
+
+  <!-- Input and Controls -->
+  <form (submit)="sendMessage()" class="mt-4 flex gap-2 bg-[#fafafa] p-3 rounded-xl border border-[#e0e0e5] items-center">
+    <button type="button" (click)="fileInput.click()" class="text-xl text-violet-600 hover:text-violet-800">📎</button>
+    <button type="button" (click)="openCamera()" class="text-xl text-violet-600 hover:text-violet-800">📷</button>
+    <input [(ngModel)]="userInput" name="userInput"
+          class="flex-1 px-4 py-2 border border-[#ccc] rounded-xl bg-white text-[#333] focus:outline-none focus:ring-2 focus:ring-violet-500" />
+    <button type="submit" class="px-5 py-2 bg-violet-600 text-white rounded-xl shadow-md hover:bg-violet-700">
+      Send
+    </button>
+  </form>
+
+  <!-- Scroll to Latest Button -->
+  <button *ngIf="showScrollToBottom"
+          (click)="onClickScrollToBottom()"
+          class="fixed bottom-20 right-6 bg-violet-600 hover:bg-violet-700 text-white rounded-full px-4 py-2 shadow-lg z-50 transition hover:scale-105">
+    ⬇️ Scroll to latest
+  </button>
+</div>
